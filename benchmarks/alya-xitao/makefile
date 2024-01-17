@@ -1,7 +1,7 @@
 #ifndef XITAO_ROOT
 #$(error XITAO_ROOT env variable is not set)
 #endif
-XITAO_ROOT = /home/nvidia/Desktop/ERASE_TACO
+XITAO_ROOT = /home/nvidia/Work_1/ERASE_TACO
 include $(XITAO_ROOT)/makefile.sched
 #include ../../makefile.sched
 CXXFLAGS += -I$(XITAO_ROOT)/include -I.

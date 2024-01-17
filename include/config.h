@@ -4,6 +4,8 @@
 /* Open debug option*/
 //#define DEBUG
 
+//#define PARALLEL_CHAINS /* Parallel chains */
+
 /* Power Model for Hebbe in Synthetic DAG Benchmarks */
 // #define Haswell
 // #define NUMSOCKETS 2
@@ -63,7 +65,7 @@
 #define TASKTYPES 2 // MM+CP
 // #define FREQLEVELS 2
 #define NUMSOCKETS 2
-// #define EAS_PTT_TRAIN 2
+//#define EAS_PTT_TRAIN 3
 /* Frequency setting: 0=>MAX, 1=>MIN */
 #define A57 0
 #define DENVER 0
@@ -97,10 +99,10 @@
 // #define ACCURACY_TEST
 
 /* Enable or disable work stealing */
-//#define WORK_STEALING
+#define WORK_STEALING
 
 /* Accumulte the total exec time this thread complete */
-//#define EXECTIME
+#define EXECTIME
 
 /* Accumulte the number of task this thread complete */
 //#define NUMTASKS_MIX

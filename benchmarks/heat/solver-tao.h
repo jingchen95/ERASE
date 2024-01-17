@@ -54,13 +54,13 @@ class jacobi2D : public TAO_PAR_FOR_2D_BASE
       }else{
         blocksize = (xstop - xstart) / width; 
       }
-      int start_tid = xstart + (threadid - leader) * blocksize;
-      int end_id = xstart + (threadid - leader + 1) * blocksize;
+      //int start_tid = xstart + (threadid - leader) * blocksize;
+      //int end_id = xstart + (threadid - leader + 1) * blocksize;
 #if DO_LOI
     kernel_profile_start();
 #endif
-      //for (int i=xstart; i<xstop; i++){
-      for (int i = start_tid; i < end_id && i < xstop; i++){
+      for (int i=xstart; i<xstop; i++){
+      //for (int i = start_tid; i < end_id && i < xstop; i++){
         for (int j=ystart; j<ystop; j++) {
           out[ndx(i,j)]= 0.25 * (in[ndx(i,j-1)]+  // left
                                   in[ndx(i,j+1)]+  // right

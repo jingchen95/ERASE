@@ -4,7 +4,7 @@
   the lenght of the chains and parallelism can be adjusted in config-chains-bench.h
 
 */
-#include "tao.h"
+//#include "tao.h"
 #include "taomatrix.h"
 #include "taosort.h"
 #include "taocopy.h"

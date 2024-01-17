@@ -1210,23 +1210,23 @@ int worker_loop(int nthread)
       }
 #endif
       
-      if(Sched == 1 && assembly->leader == nthread){
-        int width_index = assembly->width - 1;
-#ifdef DVFS
-        if(nthread < 2){
-          PTT_UpdateFlag[denver_freq][nthread][width_index]++;
-        }else{
-          PTT_UpdateFlag[a57_freq][nthread][width_index]++;
-        }
-#else
-        PTT_UpdateFlag[nthread][width_index]++;
-#ifdef DEBUG
-        LOCK_ACQUIRE(output_lck);
-        std::cout << "[DEBUG] PTT_UpdateFlag[" << nthread << "][" << width_index << "] = " << PTT_UpdateFlag[nthread][width_index] << std::endl;
-        LOCK_RELEASE(output_lck);
-#endif  
-#endif
-      }
+//       if(Sched == 1 && assembly->leader == nthread){
+//         int width_index = assembly->width - 1;
+// #ifdef DVFS
+//         if(nthread < 2){
+//           PTT_UpdateFlag[denver_freq][nthread][width_index]++;
+//         }else{
+//           PTT_UpdateFlag[a57_freq][nthread][width_index]++;
+//         }
+// #else
+//         PTT_UpdateFlag[nthread][width_index]++;
+// #ifdef DEBUG
+//         LOCK_ACQUIRE(output_lck);
+//         std::cout << "[DEBUG] PTT_UpdateFlag[" << nthread << "][" << width_index << "] = " << PTT_UpdateFlag[nthread][width_index] << std::endl;
+//         LOCK_RELEASE(output_lck);
+// #endif  
+// #endif
+//       }
 
 #ifdef DEBUG
       LOCK_ACQUIRE(output_lck);
@@ -1504,7 +1504,7 @@ int worker_loop(int nthread)
       auto epoch1_end = end1_ms.time_since_epoch();
       //LOCK_ACQUIRE(output_lck);
       //std::cout << epoch1.count() << "\t" <<  epoch1_end.count() << "\t" << elapsed_seconds.count() << std::endl;
-     // std::cout << elapsed_seconds.count() << std::endl;
+      //std::cout << elapsed_seconds.count() << std::endl;
       //LOCK_RELEASE(output_lck);
       
       // timetask << "python Energy.py " << epoch1.count() << "\t" <<  epoch1_end.count() << "\n";
@@ -1520,35 +1520,26 @@ int worker_loop(int nthread)
       out.flush();
 #endif
       double ticks = elapsed_seconds.count();
+      if(assembly->leader == nthread){
+        int width_index = assembly->width - 1;
+        //Weight the newly recorded ticks to the old ticks 1:4 and save
+        float oldticks = assembly->get_timetable( nthread,width_index);
+        float newticks = 0;
+        if(oldticks == 0){
+          newticks = ticks;
+          assembly->set_timetable(nthread, newticks, width_index);
+        }else{
+          //if(newticks > 0.0001){
+            newticks = (oldticks+4*ticks)/5; 
+            assembly->set_timetable(nthread, newticks, width_index);         
+          //}
+        }
+      }
 #ifdef DEBUG
       LOCK_ACQUIRE(output_lck);
       std::cout << "[DEBUG] Task " << assembly->taskid << " execution time on thread " << nthread << " is: " << ticks << "\n";
       LOCK_RELEASE(output_lck);
 #endif 
-      int width_index = assembly->width - 1;
-      float oldticks = assembly->get_timetable(assembly->leader,width_index);
-      if(oldticks == 0.0 || (ticks < oldticks && fabs(ticks - oldticks)/oldticks > 0.1)){
-        assembly->set_timetable(assembly->leader,ticks,width_index);  
-      }
-      else{
-        assembly->set_timetable(assembly->leader,((oldticks + ticks)/2), width_index);
-      }
-      // if(assembly->leader == nthread){
-      //   int width_index = assembly->width - 1;
-      //   //Weight the newly recorded ticks to the old ticks 1:4 and save
-      //   float oldticks = assembly->get_timetable( nthread,width_index);
-      //   float newticks = 0;
-      //   if(oldticks == 0){
-      //     newticks = ticks;
-      //     assembly->set_timetable(nthread, newticks, width_index);
-      //   }else{
-      //     //if(newticks > 0.0001){
-      //       newticks = (oldticks+4*ticks)/5; 
-      //       assembly->set_timetable(nthread, newticks, width_index);         
-      //     //}
-      //   }
-      // }
-
 #ifdef NEED_BARRIER
       if(assembly->width > 1){
         assembly->barrier->wait(assembly->width);
@@ -1985,13 +1976,13 @@ int worker_loop(int nthread)
 #ifdef PowerProfiling
       out.close();
 #endif
-      
+     /* 
 #ifdef SLEEP
       LOCK_ACQUIRE(output_lck);
       std::cout << "Thread " << nthread << " sleeps for " << AccumTime << " ms. \n";
       LOCK_RELEASE(output_lck);
 #endif
-
+*/
 #ifdef PTTaccuracy
       LOCK_ACQUIRE(output_lck);
       std::cout << "Thread " << nthread << " 's MAE = " << MAE << ". \n";

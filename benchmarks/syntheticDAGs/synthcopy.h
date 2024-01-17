@@ -20,24 +20,18 @@ public:
   static float time_table[][XITAO_MAXTHREADS];
 #endif
 
-  Synth_MatCopy(uint32_t _size, int _width, real_t *_A, real_t *_B): AssemblyTask(_width), A(_A), B(_B) {   
+Synth_MatCopy(uint32_t _size, int _width, real_t *_A, real_t *_B): AssemblyTask(_width), A(_A), B(_B) {   
     dim_size = _size;
+    block_size = dim_size / (_width * PSLACK);
+    if(block_size == 0) block_size = 1;
     block_index = 0;
-    // block_size = dim_size / (_width * PSLACK);
-    // if(block_size == 0) block_size = 1;
-    // uint32_t elem_count = dim_size * dim_size;
-    // block_count = dim_size / block_size;
+    uint32_t elem_count = dim_size * dim_size;
 /*    A = new real_t[elem_count]; 
     memset(A, rand(), elem_count*sizeof(real_t)); 
     B = new real_t[elem_count];
     memset(B, rand(), elem_count*sizeof(real_t)); 
 */
-    // input = a;
-    // output = b;
-    // width = _width;
-    // size = _size*_size;
-    // jobs = 0;
-    // job_lock.lock = false;
+    block_count = dim_size / block_size;
   }
 
   void cleanup(){ 
@@ -47,50 +41,89 @@ public:
 
   // this assembly can work totally asynchronously
   void execute(int threadid) {
-    // Add by Jing
-    block_size = dim_size / (width * PSLACK);
-    if(block_size == 0) block_size = 1;
-    block_count = dim_size / block_size;
-#ifdef DEBUG
-    LOCK_ACQUIRE(output_lck);
-    std::cout << "Task " << taskid << ", width: " << width << ". total number of blocks: " << block_count << ". Thread " << threadid << " will do block " << (threadid-leader) * (block_count/width) << " to block " << ((threadid-leader)+1) * (block_count/width) << std::endl;
-    LOCK_RELEASE(output_lck);
-#endif
-    //std::cout << "threadid = " << threadid << ", leader = " << leader << std::endl;
-    for (int i = (threadid-leader) * (block_count/width)* block_size; i < dim_size && i < ((threadid-leader)+1) * (block_count/width)* block_size; ++i) { 
-    //for(int i = 0; i < 4096; i++){
-      //std::cout << "i = " << i << "\n";
-      std::copy(A + (i * dim_size), A + (i * dim_size) + dim_size, B + i * dim_size);
-      //std::cout << "Copy i = " << i << "\n";
+    while(true) {
+      int row_block_id = block_index++;
+      if(row_block_id > block_count) return;
+      int row_block_start =  row_block_id      * block_size;
+      int row_block_end   = (row_block_id + 1) * block_size;
+      int end = (dim_size < row_block_end) ? dim_size : row_block_end; 
+      for (int i = row_block_start; i < end; ++i) { 
+         std::copy(A + (i * dim_size), A + (i * dim_size) + dim_size, B + i * dim_size);
+      }
     }
-    //std::cout << "Copy ends.\n";
-
-    // int slize = pow(width,2);
-    // int i;
-    // while(1){ 
-    //   LOCK_ACQUIRE(job_lock); //Maybe Test-and-set would be better
-		// 	i = jobs++;
-		// 	LOCK_RELEASE(job_lock)              	
-		// 	if (i >= slize) { // no more work to be don
-		// 		break;
-    //   }
-    //   //int virt_id = leader - threadid;
-    //   //int i = (virt_id % width) * (size/width); 
-    //   //memcpy(&input[i],&output[i], (size/width)*4);
-    //   memcpy(&B[i*(size/slize)],&A[i*(size/slize)], (size/slize));
-    // }
-
-    // while(true) {
-    //   int row_block_id = block_index++;
-    //   if(row_block_id > block_count) return;
-    //   int row_block_start =  row_block_id      * block_size;
-    //   int row_block_end   = (row_block_id + 1) * block_size;
-    //   int end = (dim_size < row_block_end) ? dim_size : row_block_end; 
-    //   for (int i = row_block_start; i < end; ++i) { 
-    //      std::copy(A + (i * dim_size), A + (i * dim_size) + dim_size, B + i * dim_size);
-    //   }
-    // }
   }
+
+//   Synth_MatCopy(uint32_t _size, int _width, real_t *_A, real_t *_B): AssemblyTask(_width), A(_A), B(_B) {   
+//     dim_size = _size;
+//     block_index = 0;
+//     // block_size = dim_size / (_width * PSLACK);
+//     // if(block_size == 0) block_size = 1;
+//     // uint32_t elem_count = dim_size * dim_size;
+//     // block_count = dim_size / block_size;
+// /*    A = new real_t[elem_count]; 
+//     memset(A, rand(), elem_count*sizeof(real_t)); 
+//     B = new real_t[elem_count];
+//     memset(B, rand(), elem_count*sizeof(real_t)); 
+// */
+//     // input = a;
+//     // output = b;
+//     // width = _width;
+//     // size = _size*_size;
+//     // jobs = 0;
+//     // job_lock.lock = false;
+//   }
+
+//   void cleanup(){ 
+//     //delete[] A;
+//     //delete[] B;
+//   }
+
+//   // this assembly can work totally asynchronously
+//   void execute(int threadid) {
+//     // Add by Jing
+//     block_size = dim_size / (width * PSLACK);
+//     if(block_size == 0) block_size = 1;
+//     block_count = dim_size / block_size;
+// #ifdef DEBUG
+//     LOCK_ACQUIRE(output_lck);
+//     std::cout << "Task " << taskid << ", width: " << width << ". total number of blocks: " << block_count << ". Thread " << threadid << " will do block " << (threadid-leader) * (block_count/width) << " to block " << ((threadid-leader)+1) * (block_count/width) << std::endl;
+//     LOCK_RELEASE(output_lck);
+// #endif
+//     //std::cout << "threadid = " << threadid << ", leader = " << leader << std::endl;
+//     for (int i = (threadid-leader) * (block_count/width)* block_size; i < dim_size && i < ((threadid-leader)+1) * (block_count/width)* block_size; ++i) { 
+//     //for(int i = 0; i < 4096; i++){
+//       //std::cout << "i = " << i << "\n";
+//       std::copy(A + (i * dim_size), A + (i * dim_size) + dim_size, B + i * dim_size);
+//       //std::cout << "Copy i = " << i << "\n";
+//     }
+//     //std::cout << "Copy ends.\n";
+
+//     // int slize = pow(width,2);
+//     // int i;
+//     // while(1){ 
+//     //   LOCK_ACQUIRE(job_lock); //Maybe Test-and-set would be better
+// 		// 	i = jobs++;
+// 		// 	LOCK_RELEASE(job_lock)              	
+// 		// 	if (i >= slize) { // no more work to be don
+// 		// 		break;
+//     //   }
+//     //   //int virt_id = leader - threadid;
+//     //   //int i = (virt_id % width) * (size/width); 
+//     //   //memcpy(&input[i],&output[i], (size/width)*4);
+//     //   memcpy(&B[i*(size/slize)],&A[i*(size/slize)], (size/slize));
+//     // }
+
+//     // while(true) {
+//     //   int row_block_id = block_index++;
+//     //   if(row_block_id > block_count) return;
+//     //   int row_block_start =  row_block_id      * block_size;
+//     //   int row_block_end   = (row_block_id + 1) * block_size;
+//     //   int end = (dim_size < row_block_end) ? dim_size : row_block_end; 
+//     //   for (int i = row_block_start; i < end; ++i) { 
+//     //      std::copy(A + (i * dim_size), A + (i * dim_size) + dim_size, B + i * dim_size);
+//     //   }
+//     // }
+//   }
 
 #if defined(Haswell)
   // float get_power(int thread, int real_core_use, int real_use_bywidth) {

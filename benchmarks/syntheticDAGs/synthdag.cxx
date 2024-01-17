@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
   std::ofstream timetask;
   timetask.open("data_process.sh", std::ios_base::app);
 
-  const int arr_size = 1 << 27;
+  const int arr_size = 1 << 26;
 	//const int arr_size = 1 << 16;
   real_t *A = new real_t[arr_size];
   real_t *B = new real_t[arr_size];
@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
     int total_taos = tao_mul + tao_copy + tao_stencil;
     int nthreads = XITAO_MAXTHREADS;
     int tao_types = 0;
-    //std::cout << "--------- You choose " << scheduler[schedulerid] << " scheduler ---------\n";
+    std::cout << "--------- You choose " << scheduler[schedulerid] << " scheduler ---------\n";
 
     int steal_DtoA = 0;
     int steal_AtoD = 0;
@@ -135,9 +135,14 @@ int main(int argc, char *argv[])
     graphfile << "digraph DAG{\n";
     
     int current_type = 0;
-    int previous_tao_id = 0;
     int current_tao_id = 0;
+#ifdef PARALLEL_CHAINS
+    AssemblyTask* previous_tao[parallelism];
+    int previous_tao_id[parallelism] = {0};
+#else
     AssemblyTask* previous_tao;
+    int previous_tao_id = 0;
+#endif
     AssemblyTask* startTAO;
     
     
@@ -155,7 +160,6 @@ int main(int argc, char *argv[])
       previous_tao = new Synth_MatCopy(copy_len, resource_width,  A + indx * copy_len * copy_len, B + indx * copy_len * copy_len);
       previous_tao->tasktype = 1;
       previous_tao->kernel_index = 1;
-      previous_tao->kernel_name = "CP";
       graphfile << previous_tao_id << "  [fillcolor = skyblue, style = filled];\n";
       tao_copy--;
       indx++;
@@ -164,7 +168,6 @@ int main(int argc, char *argv[])
       previous_tao = new Synth_MatStencil(stencil_len, resource_width, A+ indx * stencil_len * stencil_len, B+ indx * stencil_len * stencil_len);
       previous_tao->tasktype = 2;
       previous_tao->kernel_index = 2;
-      previous_tao->kernel_name = "ST";
       graphfile << previous_tao_id << "  [fillcolor = palegreen, style = filled];\n";
       tao_stencil--;
       indx++;
@@ -267,17 +270,21 @@ int main(int argc, char *argv[])
         switch(current_type) {
           case 0:
             if(tao_mul > 0) { 
-              //currentTAO = new Synth_MatMul(mm_len, resource_width, A + indx * mm_len * mm_len, B + indx * mm_len * mm_len, C + indx * mm_len * mm_len);
-              currentTAO = new Synth_MatMul(mm_len, resource_width, A + mm_len * mm_len, B + mm_len * mm_len, C +mm_len * mm_len);
-	      currentTAO->tasktype = 0;
+              currentTAO = new Synth_MatMul(mm_len, resource_width, A + indx * mm_len * mm_len, B + indx * mm_len * mm_len, C + indx * mm_len * mm_len);
+              currentTAO->tasktype = 0;
               currentTAO->kernel_index = 0;
-	      currentTAO->kernel_name = "MM";
+              currentTAO->kernel_name = "MM";
+#ifdef PARALLEL_CHAINS
+              previous_tao[j]->make_edge(currentTAO);                                 
+              graphfile << "  " << previous_tao_id[j] << " -> " << ++current_tao_id << " ;\n";
+#else
               previous_tao->make_edge(currentTAO);                                 
               graphfile << "  " << previous_tao_id << " -> " << ++current_tao_id << " ;\n";
+#endif
               graphfile << current_tao_id << "  [fillcolor = lightpink, style = filled];\n";
               tao_mul--;
-              //indx++;
-              //if((indx + 1) * mm_len * mm_len > arr_size) indx = 0;
+              indx++;
+              if((indx + 1) * mm_len * mm_len > arr_size) indx = 0;
               break;
             }
           case 1: 
@@ -285,9 +292,13 @@ int main(int argc, char *argv[])
               currentTAO = new Synth_MatCopy(copy_len, resource_width, A + indx * copy_len * copy_len, B + indx * copy_len * copy_len);
               currentTAO->tasktype = 1;
               currentTAO->kernel_index = 1;
-	      currentTAO->kernel_name = "CP";
+#ifdef PARALLEL_CHAINS
+              previous_tao[j]->make_edge(currentTAO);                                 
+              graphfile << "  " << previous_tao_id[j] << " -> " << ++current_tao_id << " ;\n";
+#else
               previous_tao->make_edge(currentTAO); 
               graphfile << "  " << previous_tao_id << " -> " << ++current_tao_id << " ;\n";
+#endif
               graphfile << current_tao_id << "  [fillcolor = skyblue, style = filled];\n";
               tao_copy--;
               indx++;
@@ -298,20 +309,15 @@ int main(int argc, char *argv[])
             if(tao_stencil > 0) {
               //currentTAO = new Synth_MatStencil(len, resource_width);
               currentTAO = new Synth_MatStencil(stencil_len, resource_width, A+ indx * stencil_len * stencil_len, B+ indx * stencil_len * stencil_len);
-  
-/*              if(indx % 2 == 1){
-                //currentTAO = new Synth_MatStencil(stencil_len, resource_width, A+(indx-1)*stencil_len*stencil_len, B+(indx-1)*stencil_len*stencil_len);
-                currentTAO = new Synth_MatStencil(stencil_len, resource_width, A, B);
-              }else{
-                //currentTAO = new Synth_MatStencil(stencil_len, resource_width, B+(indx-1)*stencil_len*stencil_len, A+(indx-1)*stencil_len*stencil_len);
-                currentTAO = new Synth_MatStencil(stencil_len, resource_width, B, A);
-              }
-*/
               currentTAO->tasktype = 2;        
               currentTAO->kernel_index = 2;
-	      currentTAO->kernel_name = "ST";
+#ifdef PARALLEL_CHAINS
+              previous_tao[j]->make_edge(currentTAO);                                 
+              graphfile << "  " << previous_tao_id[j] << " -> " << ++current_tao_id << " ;\n";
+#else
               previous_tao->make_edge(currentTAO); 
               graphfile << "  " << previous_tao_id << " -> " << ++current_tao_id << " ;\n";
+#endif
               graphfile << current_tao_id << "  [fillcolor = palegreen, style = filled];\n";
               tao_stencil--;
               indx++;
@@ -325,7 +331,6 @@ int main(int argc, char *argv[])
               currentTAO = new Synth_MatMul(mm_len, resource_width, A + indx * mm_len * mm_len, B + indx * mm_len * mm_len, C + indx * mm_len * mm_len);
               currentTAO->tasktype = 0;
               currentTAO->kernel_index = 0;
-	      currentTAO->kernel_name = "MM";
               previous_tao->make_edge(currentTAO); 
               graphfile << "  " << previous_tao_id << " -> " << ++current_tao_id << " ;\n";
               graphfile << current_tao_id << "  [fillcolor = lightpink, style = filled];\n";
@@ -333,22 +338,25 @@ int main(int argc, char *argv[])
               break;
             }
         }
-//#ifdef Hermes
-//        if(j == parallelism/2-1) 
-//#else
+#ifdef PARALLEL_CHAINS
+        previous_tao[j] = currentTAO;
+        previous_tao_id[j] = current_tao_id;
+#else
         if(j == parallelism-1) 
-//#endif
         {      
           new_previous_tao = currentTAO;
           new_previous_tao->criticality = 1;
           new_previous_id = current_tao_id;
         }
+#endif
         current_type++;
         if(current_type >= tao_types) current_type = 0;
       }
-  #endif
+#endif
+#ifndef PARALLEL_CHAINS
       previous_tao = new_previous_tao;
       previous_tao_id = new_previous_id;
+#endif
     }
     //close the output
     graphfile << "}";
@@ -475,8 +483,7 @@ int main(int argc, char *argv[])
 //   xitao_ptt::print_ptt<Synth_MatCopy>("MaCopy");
   // xitao_ptt::print_ptt<Synth_MatStencil>("MatStencil");
 // #endif
- //std::cout << total_taos + 1 << "," << parallelism << "," << epoch1.count() << "\t" <<  epoch1_end.count() << "," << elapsed_seconds.count() << "," << (total_taos+1) / elapsed_seconds.count() << "\n";
-  //std::cout << elapsed_seconds.count() << std::endl;
+ std::cout << total_taos + 1 << "," << parallelism << "," << epoch1.count() << "\t" <<  epoch1_end.count() << "," << elapsed_seconds.count() << "," << (total_taos+1) / elapsed_seconds.count() << "\n";
 
 #ifdef Haswell  
   std::cout << total_taos + 1 << "," << parallelism << "," << elapsed_seconds.count() << "," \
@@ -484,7 +491,7 @@ int main(int argc, char *argv[])
    ((double)after[0][0]-(double)before[0][0])/1000000.0 << ", " << ((double)after[1][0]-(double)before[1][0])/1000000.0 << "\n";
 #endif
  
-//    std::cout << "\n\n";
+    std::cout << "\n\n";
 //  for(int aa = 0; aa < XITAO_MAXTHREADS; aa++){
 //    if(exec_time[aa] != 0){
 //        std::cout << elapsed_seconds.count() - exec_time[aa] << "\n";

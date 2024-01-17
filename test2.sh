@@ -22,7 +22,7 @@ do
     for((k=0;k<3;k++))
     do
       echo "/*----------------------- MM	100.00%	+	MC	0.00% - Denver_1: $k th Begin! -----------------------*/"
-      export XITAO_LAYOUT_PATH=./ptt_layout_a4; ./benchmarks/syntheticDAGs/synbench 3 128 4096 0 4 2000 0 0 1 > Test_A57_4_${emcfreq}_${freq}_${k}.txt
+      export XITAO_LAYOUT_PATH=./d1; ./benchmarks/syntheticDAGs/synbench 3 128 4096 0 1 2000 0 0 1 > Test_${emcfreq}_${freq}_${k}.txt
       sleep 2
     done
   done

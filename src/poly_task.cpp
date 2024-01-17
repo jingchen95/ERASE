@@ -14,7 +14,7 @@
 #include "xitao_workspace.h"
 using namespace xitao;
 
-const int EAS_PTT_TRAIN = 0;
+const int EAS_PTT_TRAIN = 3;
 
 #if defined(TX2)
 int idleP_A57 = 152;
@@ -718,15 +718,15 @@ int PolyTask::ERASE_Target_Energy_2(int nthread, PolyTask * it){
         std::cout << "[Tetralith-ERASE] ptt_val(" << leader <<", " << width << ") = " << it->get_timetable(leader, width - 1) << "\n";
         LOCK_RELEASE(output_lck);
 #endif
-      // if(ptt_val == 0.0f || (PTT_UpdateFlag[leader][width-1] <= EAS_PTT_TRAIN)) {
-      if(ptt_val == 0.0f){
+      if(ptt_val == 0.0f || (PTT_UpdateFlag[leader][width-1] <= EAS_PTT_TRAIN)) {
+      //if(ptt_val == 0.0f){
         it->width  = width;
         it->leader = leader;
         // it->leader = rand()%(gotao_nthreads/it->width) * it->width;
         it->updateflag = 1;
 #ifdef DEBUG
         LOCK_ACQUIRE(output_lck);
-        std::cout << "[Tetralith-ERASE] PTT_Value (0," << width << ") = 0.0f. Run with (" << it->leader << ", " << it->width << ")." << std::endl;
+        std::cout << "[Tetralith-ERASE] PTT_Value (" << leader << ", " << width << ") = 0.0f. Run with (" << it->leader << ", " << it->width << ")." << std::endl;
         LOCK_RELEASE(output_lck);
 #endif
         return it->leader;
@@ -2314,6 +2314,7 @@ PolyTask * PolyTask::commit_and_wakeup(int _nthread){
 //          } 
 
         int ndx = rand() % gotao_nthreads;
+        //int ndx = 0;
 //        int ndx = std::distance(out.begin(), it)%gotao_nthreads; /* Test synthetic Copy execution time change along with the concurrent running tasks */
         // Case 1: EDP Test for A57 borrow n tasks
 /*        if(std::distance(out.begin(), it) >= out.size() - 1){
@@ -2333,11 +2334,11 @@ PolyTask * PolyTask::commit_and_wakeup(int _nthread){
         LOCK_ACQUIRE(worker_lock[ndx]);
         worker_ready_q[ndx].push_back(*it);
         LOCK_RELEASE(worker_lock[ndx]);
-#ifdef DEBUG
-        LOCK_ACQUIRE(output_lck);
-        std::cout <<"[RWS] Task "<< (*it)->taskid <<" is pushed to WSQ of thread "<< ndx << std::endl;
-        LOCK_RELEASE(output_lck);
-#endif
+// #ifdef DEBUG
+//         LOCK_ACQUIRE(output_lck);
+//         std::cout <<"[RWS] Task "<< (*it)->taskid <<" is pushed to WSQ of thread "<< ndx << std::endl;
+//         LOCK_RELEASE(output_lck);
+// #endif
 			}
     }
   }

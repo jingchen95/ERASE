@@ -65,12 +65,13 @@ public:
     block_size = dim_size / (width * PSLACK);
     if(block_size == 0) block_size = 1;
     block_count = dim_size / block_size;
-#ifdef DEBUG
+/*#ifdef DEBUG
     LOCK_ACQUIRE(output_lck);
     std::cout << "Task " << taskid << ", width: " << width << ". total number of blocks: " << block_count << ". Thread " << threadid << " will do block " << (threadid-leader) * (block_count/width) \
     << " to block " << ((threadid-leader)+1) * (block_count/width) << std::endl;
     LOCK_RELEASE(output_lck);
-#endif
+#endif 
+*/
     for (int i = (threadid-leader) * (block_count/width)* block_size; i < dim_size && i < ((threadid-leader)+1) * (block_count/width)* block_size; ++i) { 
       for (int j = 0; j < dim_size; j++) {
         real_t res  = 0;

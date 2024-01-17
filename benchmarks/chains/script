@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+#SBATCH -A SNIC2017-1-644
+#SBATCH -p hebbe 
+#SBATCH -n 10
+#SBATCH -t 0-00:01:00
+
+module load intel
+make
+./chains
+
+make clean

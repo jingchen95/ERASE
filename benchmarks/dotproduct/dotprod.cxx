@@ -7,6 +7,7 @@
  \param block := how many elements to process per TAO
 */
 #include <math.h>
+#include <fstream>
 #include "taos_dotproduct.h"
 #include "xitao.h"
 using namespace xitao;
@@ -33,6 +34,9 @@ int main(int argc, char *argv[]){
   int len = atoi(argv[3]);
   int width = atoi(argv[4]);
   int block = atoi(argv[5]);
+
+  std::ofstream timetask;
+  timetask.open("data_process.sh", std::ios_base::app);
 
   // For simplicity, only support only perfect partitions
   if(len % block){  
@@ -184,6 +188,8 @@ int main(int argc, char *argv[]){
   std::chrono::duration<double> elapsed_seconds = end-start;
   std::time_t end_time = std::chrono::system_clock::to_time_t(end);
   std::cout << epoch1.count() << "\t" <<  epoch1_end.count() << ", execution time: " << elapsed_seconds.count() << "s. "<< std::endl;
+  timetask << "python Energy.py " << epoch1.count() << "\t" <<  epoch1_end.count() << "\n";
+  timetask.close();
   std::cout << "Result is " << D << std::endl;
   std::cout << "Done!\n";
   std::cout << "Total successful steals: " << tao_total_steals << std::endl;

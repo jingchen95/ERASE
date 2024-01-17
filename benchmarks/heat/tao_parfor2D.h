@@ -55,24 +55,24 @@ class TAO_PAR_FOR_2D_BASE : public AssemblyTask
                        internal_chunk_size_x = _chunk_size_x;
                        internal_chunk_size_y = _chunk_size_y;
 
-                //        if(!internal_chunk_size_x) 
-                //                 internal_chunk_size_x = gotao_parfor2D_chunkx / width;
+                       if(!internal_chunk_size_x) 
+                                internal_chunk_size_x = gotao_parfor2D_chunkx / width;
 
-                //        if(!internal_chunk_size_y) 
-                //                 internal_chunk_size_y = gotao_parfor2D_chunky / width;
+                       if(!internal_chunk_size_y) 
+                                internal_chunk_size_y = gotao_parfor2D_chunky / width;
 
-                //        xchunks = (gotao_parfor2D_chunkx + 
-                //                        internal_chunk_size_x - 1)/internal_chunk_size_x;
-                //        ychunks = (gotao_parfor2D_chunky + 
-                //                        internal_chunk_size_y - 1)/internal_chunk_size_y;
+                       xchunks = (gotao_parfor2D_chunkx + 
+                                       internal_chunk_size_x - 1)/internal_chunk_size_x;
+                       ychunks = (gotao_parfor2D_chunky + 
+                                       internal_chunk_size_y - 1)/internal_chunk_size_y;
 
-                //        // assume for now only a static schedule of default chunk elems/width
-                //        if(sched == gotao_sched_2D_dynamic) 
-                //                std::cout << "Error: gotao_sched_2D_dynamic not yet implemented\n"
-                //                             "Proceed using static\n";
+                       // assume for now only a static schedule of default chunk elems/width
+                       if(sched == gotao_sched_2D_dynamic) 
+                               std::cout << "Error: gotao_sched_2D_dynamic not yet implemented\n"
+                                            "Proceed using static\n";
 
-                //        // the total number of steps to be completed by this assembly
-                //        // is the number of 2D chunks divided by the width
+                       // the total number of steps to be completed by this assembly
+                       // is the number of 2D chunks divided by the width
                 //        steps = (xchunks*ychunks + width - 1)/width;
 
                 //        for(int thrd = 0; thrd < width; thrd++){
@@ -88,6 +88,8 @@ class TAO_PAR_FOR_2D_BASE : public AssemblyTask
                 //               }
                 //             }
                       }
+
+
                 // the following are global parameters and need to be visible
                 void *gotao_parfor2D_in; 
                 void *gotao_parfor2D_out;
@@ -103,53 +105,41 @@ class TAO_PAR_FOR_2D_BASE : public AssemblyTask
                 int internal_chunk_size_x;
                 int internal_chunk_size_y;
 
-                void cleanup(){ }
+                void cleanup(){ 
+                    }
+
+
                 // this function actually performs the computation
                 virtual int compute_for2D(int off_x, int off_y, int chunk_x, int chunk_y) = 0;
+
                 void execute(int threadid){
-                        int tid = threadid - leader;
-                        if(!internal_chunk_size_x) 
-                                internal_chunk_size_x = gotao_parfor2D_chunkx / width;
-
-                       if(!internal_chunk_size_y) 
-                                internal_chunk_size_y = gotao_parfor2D_chunky / width;
-
-                       int xchunks = (gotao_parfor2D_chunkx + 
-                                       internal_chunk_size_x - 1)/internal_chunk_size_x;
-                       int ychunks = (gotao_parfor2D_chunky + 
-                                       internal_chunk_size_y - 1)/internal_chunk_size_y;
-
-                       // assume for now only a static schedule of default chunk elems/width
-                       if(sched == gotao_sched_2D_dynamic) 
-                               std::cout << "Error: gotao_sched_2D_dynamic not yet implemented\n"
-                                            "Proceed using static\n";
-
-                       // the total number of steps to be completed by this assembly
-                       // is the number of 2D chunks divided by the width
-                       steps = (xchunks*ychunks + width - 1)/width;
-
-                       for(int thrd = 0; thrd < width; thrd++){
-                                for(int st = 0; st < steps; st++){
-                                        int index = thrd*steps + st; 
-                                        int index_x = index%xchunks;
-                                        int index_y = index/xchunks;
-                                        dow[index].type = PARFOR2D_COMPUTE;  
-                                        dow[index].offx = gotao_parfor2D_offx + index_x*internal_chunk_size_x;
-                                        dow[index].offy = gotao_parfor2D_offy + index_y*internal_chunk_size_y;
-                                        dow[index].chunkx = internal_chunk_size_x;
-                                        dow[index].chunky = internal_chunk_size_y;
-                                }
-                        }
+                        steps = (xchunks * ychunks + width - 1)/width;
 #ifdef DEBUG
                         LOCK_ACQUIRE(output_lck);
-                        std::cout << "[DEBUG] Task "<< taskid << ", tid = " << tid << ", steps  =  " << steps << "......\n";
-                        LOCK_RELEASE(output_lck);
+                        std::cout << "[DEBUG] task " << taskid << ", width = " << width << ", steps =  " << steps << ".\n";
+                        LOCK_RELEASE(output_lck);          
 #endif
+                        int tid = threadid - leader;
+                        // for(int thrd = 0; thrd < width; thrd++){
+                        for(int st = 0; st < steps; st++){
+                                int index = tid * steps + st; 
+                                int index_x = index%xchunks;
+                                int index_y = index/xchunks;
+                                dow[index].type = PARFOR2D_COMPUTE;  
+                                dow[index].offx = gotao_parfor2D_offx + index_x*internal_chunk_size_x;
+                                dow[index].offy = gotao_parfor2D_offy + index_y*internal_chunk_size_y;
+                                dow[index].chunkx = internal_chunk_size_x;
+                                dow[index].chunky = internal_chunk_size_y;
+                        }
+                        // }
+                        
                         for(int s = 0; s < steps; s++){
                                 gotao_parfor2D_af *unit = &dow[tid*steps + s];
                                 compute_for2D(unit->offx, unit->offy, unit->chunkx, unit->chunky);
                         }
                 }
                 int steps;
+                int xchunks; 
+                int ychunks;
                 gotao_parfor2D_af dow[MAX_PARFOR_SIZE]; 
 };
